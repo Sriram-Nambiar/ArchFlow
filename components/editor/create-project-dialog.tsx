@@ -53,7 +53,7 @@ export function CreateProjectDialog({
           </div>
 
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-copy-faint">Slug preview</p>
+            <p className="text-xs font-medium text-copy-faint">Room ID</p>
             <div className="rounded-xl border border-border-default bg-subtle px-3 py-2 font-mono text-xs text-copy-muted">
               {projectSlug || "—"}
             </div>

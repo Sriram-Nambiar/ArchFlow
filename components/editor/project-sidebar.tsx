@@ -9,16 +9,16 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { Plus, X, Pencil, Trash2 } from "lucide-react"
-import type { MockProject } from "@/lib/mock-projects"
+import type { ProjectItem } from "@/lib/types"
 
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
-  ownedProjects: MockProject[]
-  sharedProjects: MockProject[]
+  ownedProjects: ProjectItem[]
+  sharedProjects: ProjectItem[]
   onNewProject: () => void
-  onRename: (project: MockProject) => void
-  onDelete: (project: MockProject) => void
+  onRename: (project: ProjectItem) => void
+  onDelete: (project: ProjectItem) => void
   className?: string
 }
 
@@ -27,9 +27,9 @@ function ProjectItem({
   onRename,
   onDelete,
 }: {
-  project: MockProject
-  onRename: (project: MockProject) => void
-  onDelete: (project: MockProject) => void
+  project: ProjectItem
+  onRename: (project: ProjectItem) => void
+  onDelete: (project: ProjectItem) => void
 }) {
   return (
     <div className="group flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-subtle">
@@ -67,10 +67,10 @@ function ProjectList({
   onRename,
   onDelete,
 }: {
-  projects: MockProject[]
+  projects: ProjectItem[]
   label: string
-  onRename: (project: MockProject) => void
-  onDelete: (project: MockProject) => void
+  onRename: (project: ProjectItem) => void
+  onDelete: (project: ProjectItem) => void
 }) {
   if (projects.length === 0) {
     return (

@@ -8,12 +8,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import type { MockProject } from "@/lib/mock-projects"
+import type { ProjectItem } from "@/lib/types"
 
 interface DeleteProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  targetProject: MockProject | null
+  targetProject: ProjectItem | null
   onDelete: () => void
   isLoading: boolean
 }
