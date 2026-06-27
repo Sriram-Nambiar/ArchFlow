@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,34 +10,47 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { Plus, X, Pencil, Trash2 } from "lucide-react"
-import type { MockProject } from "@/lib/mock-projects"
+import type { ProjectItem } from "@/lib/types"
 
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
-  ownedProjects: MockProject[]
-  sharedProjects: MockProject[]
+  ownedProjects: ProjectItem[]
+  sharedProjects: ProjectItem[]
   onNewProject: () => void
-  onRename: (project: MockProject) => void
-  onDelete: (project: MockProject) => void
+  onRename: (project: ProjectItem) => void
+  onDelete: (project: ProjectItem) => void
+  activeRoomId?: string
   className?: string
 }
 
-function ProjectItem({
+function SidebarProjectItem({
   project,
   onRename,
   onDelete,
+  isActive,
 }: {
-  project: MockProject
-  onRename: (project: MockProject) => void
-  onDelete: (project: MockProject) => void
+  project: ProjectItem
+  onRename: (project: ProjectItem) => void
+  onDelete: (project: ProjectItem) => void
+  isActive?: boolean
 }) {
   return (
-    <div className="group flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-subtle">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-copy-primary">{project.name}</p>
+    <div
+      className={cn(
+        "group relative flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-subtle",
+        isActive && "bg-subtle"
+      )}
+    >
+      {isActive && (
+        <div className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-brand" />
+      )}
+      <Link href={`/editor/${project.id}`} className="min-w-0 flex-1 pl-1">
+        <p className={cn("truncate text-sm", isActive ? "text-brand font-medium" : "text-copy-primary")}>
+          {project.name}
+        </p>
         <p className="truncate text-xs text-copy-faint">{project.slug}</p>
-      </div>
+      </Link>
       {project.isOwner && (
         <div className="ml-2 flex shrink-0 gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
           <Button
@@ -66,11 +80,13 @@ function ProjectList({
   label,
   onRename,
   onDelete,
+  activeRoomId,
 }: {
-  projects: MockProject[]
+  projects: ProjectItem[]
   label: string
-  onRename: (project: MockProject) => void
-  onDelete: (project: MockProject) => void
+  onRename: (project: ProjectItem) => void
+  onDelete: (project: ProjectItem) => void
+  activeRoomId?: string
 }) {
   if (projects.length === 0) {
     return (
@@ -83,11 +99,12 @@ function ProjectList({
   return (
     <div className="flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
       {projects.map((project) => (
-        <ProjectItem
+        <SidebarProjectItem
           key={project.id}
           project={project}
           onRename={onRename}
           onDelete={onDelete}
+          isActive={activeRoomId === project.id}
         />
       ))}
     </div>
@@ -102,6 +119,7 @@ export function ProjectSidebar({
   onNewProject,
   onRename,
   onDelete,
+  activeRoomId,
   className,
 }: ProjectSidebarProps) {
   return (
@@ -151,6 +169,7 @@ export function ProjectSidebar({
               label=""
               onRename={onRename}
               onDelete={onDelete}
+              activeRoomId={activeRoomId}
             />
           </TabsContent>
           <TabsContent value="shared" className="flex flex-1 flex-col">
@@ -159,6 +178,7 @@ export function ProjectSidebar({
               label="shared"
               onRename={onRename}
               onDelete={onDelete}
+              activeRoomId={activeRoomId}
             />
           </TabsContent>
         </Tabs>

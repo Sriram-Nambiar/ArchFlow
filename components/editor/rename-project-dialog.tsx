@@ -10,13 +10,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import type { MockProject } from "@/lib/mock-projects"
+import type { ProjectItem } from "@/lib/types"
 
 interface RenameProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectName: string
-  targetProject: MockProject | null
+  targetProject: ProjectItem | null
   onNameChange: (name: string) => void
   onRename: () => void
   isLoading: boolean
