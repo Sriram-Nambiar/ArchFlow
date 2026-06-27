@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useCallback } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { slugify, generateSuffix } from "@/lib/slugify"
 import type { ProjectItem } from "@/lib/types"
@@ -39,14 +39,14 @@ const initialDialogState: ProjectDialogState = {
 export function useProjectActions(): UseProjectActionsReturn {
   const router = useRouter()
   const [dialogState, setDialogState] = useState<ProjectDialogState>(initialDialogState)
-  const createSuffixRef = useRef("")
+  const [createSuffix, setCreateSuffix] = useState("")
 
   const roomIdPreview = dialogState.activeDialog === "create" && dialogState.projectSlug
-    ? `${dialogState.projectSlug}-${createSuffixRef.current}`
+    ? `${dialogState.projectSlug}-${createSuffix}`
     : ""
 
   const openCreateDialog = useCallback(() => {
-    createSuffixRef.current = generateSuffix()
+    setCreateSuffix(generateSuffix())
     setDialogState({
       activeDialog: "create",
       projectName: "",
@@ -92,8 +92,6 @@ export function useProjectActions(): UseProjectActionsReturn {
     if (dialogState.isLoading || !dialogState.projectName.trim()) return
 
     const name = dialogState.projectName.trim()
-    const suffix = createSuffixRef.current
-    const roomId = `${slugify(name)}-${suffix}`
 
     setDialogState((prev) => ({ ...prev, isLoading: true }))
 

@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Wire editor home sidebar and dialogs to the real project API
+- Shape panel and basic node rendering complete
 
 ## Current Goal
 
-- Replace mock project data with real server-side fetching and wire all project mutations (create, rename, delete) to backend API routes.
+- Shape-specific node visuals and canvas controls.
 
 ## Completed
 
@@ -27,7 +27,8 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Canvas foundation (React Flow + Liveblocks setup)
+- Shape-specific node visuals (diamond SVG, circle, pill, cylinder, hexagon)
+- Canvas controls (zoom, fit)
 
 ## Open Questions
 
@@ -48,6 +49,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - `lib/prisma.ts` exports a single cached Prisma Client instance; `prisma+postgres://` URLs use `accelerateUrl`, other Postgres URLs use `@prisma/adapter-pg`.
 - Project API route handlers call Clerk `auth()` directly so API requests can return explicit `401` responses instead of `auth.protect()` fallback behavior.
 - Server-side project fetching uses `lib/project-data.ts` which calls `getOwnedProjects()` (owner match) and `getSharedProjects()` (collaborator email match via Clerk `currentUser()`).
+- Collaborator email matching is centralized in `lib/email.ts`; project access checks, shared-project queries, and collaborator invite/remove now use the same normalized email format.
 - `useProjectActions` hook in `hooks/use-project-actions.ts` uses `useRef` for a stable create suffix, `next/navigation` router for post-mutation navigation/refresh.
 - Room ID preview in create dialog shows `{slug}-{6-char-suffix}`; the suffix is generated once when the dialog opens.
 - Mock data (`lib/mock-projects.ts`) is retained but unused after wiring; can be removed in a cleanup pass.
@@ -63,3 +65,10 @@ Update this file whenever the current phase, active feature, or implementation s
 - Prisma validation, migration, generation, and production build all completed successfully for 05-prisma.
 - Backend project APIs were added without wiring the editor UI; mock project UI remains untouched for a later integration step.
 - Feature 07 replaced `useProjectDialogs` with `useProjectActions`; added `lib/slugify.ts`, `lib/types.ts`, `lib/project-data.ts`, `components/editor/editor-home-client.tsx`. The server component `app/editor/page.tsx` delegates to the client wrapper. All components updated from `MockProject` to `ProjectItem`.
+- 08-editor-workspace-shell: `/editor/[roomId]` page built asiframes server component with access checks via `lib/project-access.ts` (`getClerkIdentity`, `checkProjectAccess`). Unauthenticated users redirect to `/sign-in`; unauthorized or non-existent projects show `AccessDenied`. `components/editor/access-denied.tsx` created with lock icon, message, and back link. `EditorNavbar` updated to accept `projectName` prop and render share/AI toggle buttons. `ProjectSidebar` updated with `activeRoomId` prop to highlight current room and link items to `/editor/[roomId]`. `EditorWorkspaceClient` creates the workspace layout with top navbar, left sidebar, central canvas placeholder, and right AI sidebar placeholder. No canvas logic, Liveblocks, or real sharing yet.
+- 09-share-dialog: Share button in editor navbar opens `ShareDialog`. Owners can invite collaborators by email, view current collaborator list with Clerk-enriched names/avatars (falling back to email-only when not found), remove collaborators, and copy the project link with "Copied!" feedback. Collaborators see a read-only collaborator list. Server-side ownership enforced for invite/remove via `GET/POST/DELETE /api/projects/[projectId]/collaborators`. Clerk enrichment uses `clerkClient.users.getUserList()` with email lookup. `lib/collaborators.ts` exports `getEnrichedCollaborators`, `addCollaborator`, `removeCollaborator`.
+- Share access fix: workspace access now checks normalized collaborator emails in the database, shared-project sidebar queries use the same normalization, and collaborator list reads require owner-or-collaborator access. Share dialog redesigned with clearer link copy, invite, read-only collaborator, error, loading, and collaborator-list states.
+- Share access bug fixes (09-share-dialog stabilization): (1) `getClerkIdentity` now wraps `currentUser()` in try-catch so errors fall through to `clerkClient()` fallback instead of throwing; (2) `getSharedProjects` query pushes email filtering to DB level via `collaborators.some.email.in`; (3) `next.config.ts` adds Clerk image remote patterns so avatars render; (4) Share dialog reordered — Invite section appears before the link section, with a contextual hint when 0 collaborators warning that the link alone does not grant access.
+- 10-liveblocks-setup: `liveblocks.config.ts` updated with typed `Presence` (cursor x/y + `isThinking`) and `UserMeta` (id, name, avatar, cursorColor). Cached Liveblocks node client in `lib/liveblocks.ts` using lazy `getLiveblocksClient()` (defers env-var check to request time). Deterministic `getCursorColor(userId)` maps any user ID to one of 12 fixed colors via hash. `POST /api/liveblocks-auth` requires Clerk auth, verifies project access via `checkProjectAccess`, calls `getOrCreateRoom`, and returns a session token with user name/avatar/cursor color. Returns `403` for unauthorized access. `@liveblocks/node` installed. `npm run build` passes.
+- 11-base-canvas: `types/canvas.ts` created with `NodeData` (label, color, shape), `NodeShape` union, `CanvasNode`/`CanvasEdge` typed aliases, `NODE_COLORS` palette (8 pairs), and `NODE_SHAPES` list. `liveblocks.config.ts` Storage type updated to `flow: LiveblocksFlow<CanvasNode, CanvasEdge>`. `components/editor/canvas-wrapper.tsx` sets up `LiveblocksProvider` (authEndpoint `/api/liveblocks-auth`), `RoomProvider` (initialPresence + initialStorage with empty LiveObject/LiveMap), `ClientSideSuspense` loading spinner, and a class-based `LiveblocksErrorBoundary`. `components/editor/canvas.tsx` uses `useLiveblocksFlow({ suspense: true })` with `CanvasNode`/`CanvasEdge` types and renders `ReactFlow` with loose connections, `fitView`, dot-pattern `Background`, and `MiniMap`. Canvas placeholder in `editor-workspace-client.tsx` replaced with `<CanvasWrapper roomId={project.id} />`. `@xyflow/react/dist/style.css` imported in `globals.css`. `npm run build` passes.
+- 12-shape-panel: `components/editor/shape-panel.tsx` — floating pill toolbar rendered via React Flow `Panel` at `bottom-center`; 6 draggable buttons (rectangle, diamond, circle, pill, cylinder, hexagon) using Lucide icons; `onDragStart` serializes `{shape, width, height}` into `dataTransfer` under key `application/ghostflow-shape`. `components/editor/canvas-node.tsx` — `CanvasNodeComponent` renders every shape as a dark-filled bordered rectangle with centered label and 4 `Handle` connection points; `nodeTypes` map exported as stable constant. `components/editor/canvas.tsx` updated with: `onInit` captures `ReactFlowInstance` ref for `screenToFlowPosition`; `onDragOver` accepts only ghostflow-shape drags; `onDrop` reads payload, converts screen → canvas coords, centers node on drop point, generates ID as `{shape}-{timestamp}-{counter}`, pushes `{ type: "add", item }` through Liveblocks `onNodesChange`; `nodeTypes` and `ShapePanel` wired in. `npm run build` passes.
