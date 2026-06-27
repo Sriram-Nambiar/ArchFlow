@@ -1,4 +1,4 @@
-import type { Node, Edge } from "@xyflow/react"
+import type { Node, Edge } from "@xyflow/react";
 
 // ---------------------------------------------------------------------------
 // Node shapes
@@ -10,7 +10,7 @@ export type NodeShape =
   | "circle"
   | "pill"
   | "cylinder"
-  | "hexagon"
+  | "hexagon";
 
 // ---------------------------------------------------------------------------
 // Node data
@@ -18,19 +18,28 @@ export type NodeShape =
 
 export interface NodeData extends Record<string, unknown> {
   /** Display label for the node. */
-  label: string
+  label: string;
   /** Fill color hex — should match one of NODE_COLORS[n].fill. */
-  color?: string
+  color?: string;
   /** Rendered shape variant. Defaults to "rectangle". */
-  shape?: NodeShape
+  shape?: NodeShape;
+}
+
+// ---------------------------------------------------------------------------
+// Edge data
+// ---------------------------------------------------------------------------
+
+export interface EdgeData extends Record<string, unknown> {
+  /** Optional inline label shown at the path midpoint. */
+  label?: string;
 }
 
 // ---------------------------------------------------------------------------
 // Typed React Flow node and edge
 // ---------------------------------------------------------------------------
 
-export type CanvasNode = Node<NodeData, "canvasNode">
-export type CanvasEdge = Edge<Record<string, unknown>, "canvasEdge">
+export type CanvasNode = Node<NodeData, "canvasNode">;
+export type CanvasEdge = Edge<EdgeData, "canvasEdge">;
 
 // ---------------------------------------------------------------------------
 // Color palette — 8 dark fill / vivid text pairs (from ui-context.md)
@@ -45,7 +54,7 @@ export const NODE_COLORS = [
   { fill: "#3A1726", text: "#F75F8F" }, // pink
   { fill: "#0F2E18", text: "#62C073" }, // green
   { fill: "#062822", text: "#0AC7B4" }, // teal
-] as const
+] as const;
 
 // ---------------------------------------------------------------------------
 // Shape list (all supported variants)
@@ -58,4 +67,4 @@ export const NODE_SHAPES: readonly NodeShape[] = [
   "pill",
   "cylinder",
   "hexagon",
-] as const
+] as const;

@@ -1,45 +1,43 @@
 "use client";
 
-import type { ComponentType } from "react";
-import { Handle, Position } from "@xyflow/react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type ComponentType,
+} from "react";
+import { Handle, Position, NodeResizer, useReactFlow } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
-import type { CanvasNode, NodeShape } from "@/types/canvas";
+import type { CanvasNode } from "@/types/canvas";
 import { NODE_COLORS } from "@/types/canvas";
+import { NodeColorToolbar } from "./node-color-toolbar";
 
 // ---------------------------------------------------------------------------
-// SVG shape geometry
-// Each shape is rendered inside an <svg> that exactly covers the node bounds.
-// Stroke is centered on the path, so geometry starts at sw/2 to stay in-bounds.
+// SVG geometry — only for complex shapes that cannot be expressed with CSS.
+// Rectangle, pill, and circle use CSS borders + border-radius instead.
 // ---------------------------------------------------------------------------
 
-interface ShapeGeometryProps {
-  shape: NodeShape;
+interface SvgShapeGeometryProps {
+  shape: "diamond" | "hexagon" | "cylinder";
   w: number;
   h: number;
   fill: string;
   stroke: string;
 }
 
-function ShapeGeometry({ shape, w, h, fill, stroke }: ShapeGeometryProps) {
+function SvgShapeGeometry({
+  shape,
+  w,
+  h,
+  fill,
+  stroke,
+}: SvgShapeGeometryProps) {
   const sw = 1.5; // stroke width
   const half = sw / 2;
 
   switch (shape) {
-    // -- Circle / ellipse -------------------------------------------------------
-    case "circle":
-      return (
-        <ellipse
-          cx={w / 2}
-          cy={h / 2}
-          rx={w / 2 - half}
-          ry={h / 2 - half}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={sw}
-        />
-      );
-
-    // -- Diamond (rotated square) -----------------------------------------------
+    // -- Diamond (rotated square) -------------------------------------------
     case "diamond": {
       const pts = [
         `${w / 2},${half}`, // top
@@ -52,29 +50,12 @@ function ShapeGeometry({ shape, w, h, fill, stroke }: ShapeGeometryProps) {
       );
     }
 
-    // -- Pill (stadium / capsule) -----------------------------------------------
-    case "pill":
-      return (
-        <rect
-          x={half}
-          y={half}
-          width={w - sw}
-          height={h - sw}
-          rx={h / 2}
-          ry={h / 2}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={sw}
-        />
-      );
-
-    // -- Cylinder ---------------------------------------------------------------
-    // Body: two vertical lines + bottom arc, then top ellipse cap on top.
+    // -- Cylinder -------------------------------------------------------------
+    // Body: two vertical lines + bottom arc; top ellipse cap drawn on top.
     case "cylinder": {
-      const ey = Math.max(h * 0.18, 8); // top/bottom ellipse y-radius
+      const ey = Math.max(h * 0.18, 8); // ellipse y-radius for top/bottom caps
       const rx = w / 2 - half;
 
-      // Body path: left edge → bottom arc → right edge (top covered by cap ellipse)
       const body = [
         `M ${half},${ey}`,
         `L ${half},${h - ey}`,
@@ -101,8 +82,7 @@ function ShapeGeometry({ shape, w, h, fill, stroke }: ShapeGeometryProps) {
       );
     }
 
-    // -- Hexagon ---------------------------------------------------------------
-    // Pointy-top hexagon: first point at the top centre.
+    // -- Hexagon (pointy-top) ------------------------------------------------
     case "hexagon": {
       const pts = Array.from({ length: 6 }, (_, i) => {
         const angle = (Math.PI / 3) * i - Math.PI / 2;
@@ -114,23 +94,24 @@ function ShapeGeometry({ shape, w, h, fill, stroke }: ShapeGeometryProps) {
         <polygon points={pts} fill={fill} stroke={stroke} strokeWidth={sw} />
       );
     }
+  }
+}
 
-    // -- Rectangle (default) ---------------------------------------------------
-    case "rectangle":
+// ---------------------------------------------------------------------------
+// Minimum node dimensions per shape
+// ---------------------------------------------------------------------------
+
+function getMinDimensions(shape: string): {
+  minWidth: number;
+  minHeight: number;
+} {
+  switch (shape) {
+    case "circle":
+      return { minWidth: 60, minHeight: 60 };
+    case "diamond":
+      return { minWidth: 80, minHeight: 80 };
     default:
-      return (
-        <rect
-          x={half}
-          y={half}
-          width={w - sw}
-          height={h - sw}
-          rx={10}
-          ry={10}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={sw}
-        />
-      );
+      return { minWidth: 80, minHeight: 40 };
   }
 }
 
@@ -139,6 +120,7 @@ function ShapeGeometry({ shape, w, h, fill, stroke }: ShapeGeometryProps) {
 // ---------------------------------------------------------------------------
 
 export function CanvasNodeComponent({
+  id,
   data,
   selected,
   width,
@@ -149,46 +131,231 @@ export function CanvasNodeComponent({
   const shape = data.shape ?? "rectangle";
   const colorPair =
     NODE_COLORS.find((c) => c.fill === data.color) ?? NODE_COLORS[0];
-  const stroke = selected ? "var(--accent-primary)" : "var(--border-subtle)";
+
+  // Subtle border at rest; vivid accent border when selected.
+  const strokeColor = selected
+    ? "var(--accent-primary)"
+    : "var(--border-subtle)";
+
+  // CSS shapes: rectangle, pill, circle — expressed through border-radius only.
+  const isCssShape =
+    shape === "rectangle" || shape === "pill" || shape === "circle";
+
+  const cssRadius =
+    shape === "circle" ? "50%" : shape === "pill" ? `${h / 2}px` : "10px"; // rectangle
+
+  // -------------------------------------------------------------------------
+  // Inline label editing
+  // -------------------------------------------------------------------------
+
+  const [isEditing, setIsEditing] = useState(false);
+  // contenteditable div ref — text is set via DOM so React never resets the
+  // cursor position on re-renders triggered by Liveblocks label syncs.
+  const editRef = useRef<HTMLDivElement>(null);
+  const { updateNodeData } = useReactFlow<CanvasNode>();
+
+  // When editing starts: initialise DOM text content and move cursor to end.
+  // data.label is intentionally excluded from deps — we only want to seed the
+  // editor once when it opens, not on every collaborative update.
+  useEffect(() => {
+    if (!isEditing || !editRef.current) return;
+    const el = editRef.current;
+    el.textContent = data.label;
+    el.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    if (sel) {
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
+
+  const startEditing = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+  }, []);
+
+  const stopEditing = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+
+  const handleInput = useCallback(
+    (e: React.FormEvent<HTMLDivElement>) => {
+      updateNodeData(id, { label: e.currentTarget.textContent ?? "" });
+    },
+    [id, updateNodeData],
+  );
+
+  const handleEditKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        stopEditing();
+      }
+      // Prevent React Flow keyboard shortcuts from firing while typing.
+      e.stopPropagation();
+    },
+    [stopEditing],
+  );
+
+  // -------------------------------------------------------------------------
+  // Resize min dimensions
+  // -------------------------------------------------------------------------
+
+  const { minWidth, minHeight } = getMinDimensions(shape);
 
   return (
     <div style={{ width: w, height: h }} className="relative select-none">
+      {/*
+        Color toolbar — floats above the node via NodeToolbar portal.
+        Only visible when the node is selected.
+      */}
+      <NodeColorToolbar
+        nodeId={id}
+        activeFill={colorPair.fill}
+        selected={selected}
+      />
+
+      {/*
+        Resize handles — rendered by @xyflow/react's NodeResizer.
+        Only visible when the node is selected. Changes flow through
+        onNodesChange, which Liveblocks intercepts and syncs to all
+        collaborators.
+      */}
+      <NodeResizer
+        isVisible={selected}
+        minWidth={minWidth}
+        minHeight={minHeight}
+        handleStyle={{
+          width: 8,
+          height: 8,
+          backgroundColor: "var(--bg-elevated)",
+          border: "1.5px solid var(--accent-primary)",
+          borderRadius: "2px",
+          zIndex: 10,
+        }}
+        lineStyle={{ border: "none" }}
+      />
+
       {/*
         All 4 handles use type="source" with unique IDs.
         ConnectionMode.Loose (set on <ReactFlow>) lets any handle connect to
         any other handle, so the user's drag direction fully controls which
         end is source and which is target — no forced topology.
-
-        Unique IDs are critical: without them React Flow conflates all handles
-        of the same type into one connection point, limiting to a single edge.
       */}
-      <Handle type="source" position={Position.Top} id="top" />
-      <Handle type="source" position={Position.Right} id="right" />
-      <Handle type="source" position={Position.Bottom} id="bottom" />
-      <Handle type="source" position={Position.Left} id="left" />
+      {/*
+        Handles are hidden by default and fade in when the node is hovered.
+        !important overrides (! prefix) beat React Flow's built-in handle styles.
+        All four sides use type="source"; ConnectionMode.Loose on the canvas
+        allows any handle to connect to any other handle regardless of type.
+      */}
+      {/*
+        Handle style is kept to pure overrides; opacity / visibility is
+        fully controlled by CSS in globals.css so it works during connection
+        drags (when React Flow adds .connectingfrom / .connectionindicator)
+        as well as plain node hover.
+      */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top"
+        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left"
+        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
+      />
 
-      {/* SVG shape background */}
-      <svg
-        width={w}
-        height={h}
-        className="absolute inset-0"
-        style={{ pointerEvents: "none", overflow: "visible" }}
-      >
-        <ShapeGeometry
-          shape={shape}
-          w={w}
-          h={h}
-          fill={colorPair.fill}
-          stroke={stroke}
+      {isCssShape ? (
+        /* CSS-styled shapes — rectangle, pill, circle */
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundColor: colorPair.fill,
+            border: `1.5px solid ${strokeColor}`,
+            borderRadius: cssRadius,
+            pointerEvents: "none",
+          }}
         />
-      </svg>
+      ) : (
+        /* SVG shapes — diamond, hexagon, cylinder; scale with node dimensions */
+        <svg
+          width={w}
+          height={h}
+          className="absolute inset-0"
+          style={{ pointerEvents: "none", overflow: "visible" }}
+        >
+          <SvgShapeGeometry
+            shape={shape as "diamond" | "hexagon" | "cylinder"}
+            w={w}
+            h={h}
+            fill={colorPair.fill}
+            stroke={strokeColor}
+          />
+        </svg>
+      )}
 
-      {/* Centered label */}
+      {/*
+        Label area.
+        - Double-click opens inline editing.
+        - When editing, a textarea overlays the label exactly.
+        - Pointer events on the textarea are stopped so React Flow does not
+          interpret typing gestures as canvas drag or pan.
+        - `nodrag` and `nopan` class names tell React Flow not to initiate
+          drag or pan from within this element.
+      */}
       <div
-        className="absolute inset-0 flex items-center justify-center px-3 py-1 text-xs font-medium text-center leading-tight pointer-events-none"
-        style={{ color: colorPair.text }}
+        className="absolute inset-0 flex items-center justify-center px-3 py-1"
+        onDoubleClick={startEditing}
       >
-        {data.label}
+        {isEditing ? (
+          // contenteditable div — sits inside the flex-center container so it
+          // is naturally vertically centred. Text is managed via the DOM rather
+          // than React so the cursor stays stable while Liveblocks re-renders.
+          <div
+            ref={editRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={handleInput}
+            onBlur={stopEditing}
+            onKeyDown={handleEditKeyDown}
+            /* Stop React Flow from treating typing as canvas drag / pan. */
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="nodrag nopan w-full outline-none text-xs font-medium text-center leading-tight break-words"
+            style={{
+              color: colorPair.text,
+              whiteSpace: "pre-wrap",
+              minHeight: "1em",
+            }}
+          />
+        ) : (
+          <span
+            className="text-xs font-medium text-center leading-tight pointer-events-none whitespace-pre-wrap break-words"
+            style={{
+              color: data.label ? colorPair.text : "var(--text-faint)",
+            }}
+          >
+            {data.label || "Label"}
+          </span>
+        )}
       </div>
     </div>
   );

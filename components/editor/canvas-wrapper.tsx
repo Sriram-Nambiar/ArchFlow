@@ -8,6 +8,8 @@ import {
 } from "@liveblocks/react";
 import { LiveObject, LiveMap } from "@liveblocks/client";
 import { Canvas } from "./canvas";
+import type { CanvasTemplate } from "./starter-templates";
+import type { SaveStatus } from "@/hooks/use-canvas-autosave";
 
 // ---------------------------------------------------------------------------
 // Error boundary for Liveblocks connection failures
@@ -80,15 +82,21 @@ function LiveblocksError() {
 
 interface CanvasWrapperProps {
   roomId: string;
+  projectId: string;
+  templateImport: {
+    id: number;
+    template: CanvasTemplate;
+  } | null;
+  onSaveStatusChange?: (status: SaveStatus) => void;
 }
 
-export function CanvasWrapper({ roomId }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, projectId, templateImport, onSaveStatusChange }: CanvasWrapperProps) {
   return (
     <LiveblocksErrorBoundary fallback={<LiveblocksError />}>
       <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
         <RoomProvider
           id={roomId}
-          initialPresence={{ cursor: null, isThinking: false }}
+          initialPresence={{ cursor: null, thinking: false }}
           initialStorage={() => ({
             flow: new LiveObject({
               nodes: new LiveMap(),
@@ -97,7 +105,7 @@ export function CanvasWrapper({ roomId }: CanvasWrapperProps) {
           })}
         >
           <ClientSideSuspense fallback={<CanvasLoading />}>
-            <Canvas />
+            <Canvas projectId={projectId} templateImport={templateImport} onSaveStatusChange={onSaveStatusChange} />
           </ClientSideSuspense>
         </RoomProvider>
       </LiveblocksProvider>

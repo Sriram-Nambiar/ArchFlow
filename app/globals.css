@@ -170,3 +170,43 @@
         @apply font-sans;
     }
 }
+
+/* ==========================================================================
+   Canvas — React Flow overrides
+   These rules live outside @layer so they beat Tailwind utility classes and
+   React Flow's own stylesheet regardless of load order.
+   ========================================================================== */
+
+/*
+  Node connection handles
+  -----------------------
+  Hidden at rest. Revealed in three situations:
+    1. The user is hovering the parent node (.react-flow__node:hover).
+    2. The handle is the source of an active connection drag (.connectingfrom).
+    3. The handle is a valid drop target during a connection drag
+       (.connectionindicator — added by React Flow when the cursor enters a
+       valid target handle while a connection is in progress).
+*/
+.react-flow__node .react-flow__handle {
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.react-flow__node:hover .react-flow__handle {
+    opacity: 1;
+}
+
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectionindicator {
+    opacity: 1;
+}
+
+/*
+  Connection preview line
+  -----------------------
+  Make the drag-to-connect preview line visible on the dark canvas.
+*/
+.react-flow__connection-path {
+    stroke: var(--text-secondary) !important;
+    stroke-width: 1.5 !important;
+}

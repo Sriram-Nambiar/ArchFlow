@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectSidebar } from "@/components/editor/project-sidebar";
 import { CreateProjectDialog } from "@/components/editor/create-project-dialog";
@@ -8,8 +8,12 @@ import { RenameProjectDialog } from "@/components/editor/rename-project-dialog";
 import { DeleteProjectDialog } from "@/components/editor/delete-project-dialog";
 import { ShareDialog } from "@/components/editor/share-dialog";
 import { CanvasWrapper } from "@/components/editor/canvas-wrapper";
+import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
+import { AiSidebar } from "@/components/editor/ai-sidebar";
 import { useProjectActions } from "@/hooks/use-project-actions";
 import type { ProjectItem } from "@/lib/types";
+import type { CanvasTemplate } from "./starter-templates";
+import type { SaveStatus } from "@/hooks/use-canvas-autosave";
 
 interface ProjectStub {
   id: string;
@@ -31,7 +35,18 @@ export function EditorWorkspaceClient({
   sharedProjects,
 }: EditorWorkspaceClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [templateImport, setTemplateImport] = useState<{
+    id: number;
+    template: CanvasTemplate;
+  } | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
+  const handleSaveStatusChange = useCallback((status: SaveStatus) => {
+    setSaveStatus(status);
+  }, []);
 
   const {
     dialogState,
@@ -52,7 +67,10 @@ export function EditorWorkspaceClient({
         projectName={project.name}
         isSidebarOpen={isSidebarOpen}
         onSidebarToggle={() => setIsSidebarOpen((prev) => !prev)}
+        onTemplatesClick={() => setIsTemplatesOpen(true)}
         onShareClick={() => setIsShareOpen(true)}
+        isAiSidebarOpen={isAiSidebarOpen}
+        onAiSidebarToggle={() => setIsAiSidebarOpen((prev) => !prev)}
       />
 
       <ProjectSidebar
@@ -67,27 +85,19 @@ export function EditorWorkspaceClient({
       />
 
       <main className="flex flex-1 overflow-hidden pt-14">
-        {/* Canvas area */}
         <div className="relative flex flex-1 overflow-hidden">
-          <CanvasWrapper roomId={project.id} />
+          <CanvasWrapper
+            roomId={project.id}
+            projectId={project.id}
+            templateImport={templateImport}
+            onSaveStatusChange={handleSaveStatusChange}
+          />
         </div>
 
-        {/* AI sidebar placeholder */}
-        <aside className="hidden w-80 flex-col border-l border-border-default bg-surface lg:flex">
-          <div className="flex h-14 items-center border-b border-border-default px-4">
-            <h2 className="text-sm font-medium text-copy-primary">
-              AI Assistant
-            </h2>
-          </div>
-          <div className="flex flex-1 items-center justify-center px-4">
-            <div className="text-center">
-              <p className="text-sm text-copy-muted">AI chat coming soon</p>
-              <p className="text-xs text-copy-faint mt-1">
-                Ask questions about your architecture
-              </p>
-            </div>
-          </div>
-        </aside>
+        <AiSidebar
+          isOpen={isAiSidebarOpen}
+          onClose={() => setIsAiSidebarOpen(false)}
+        />
       </main>
 
       <CreateProjectDialog
@@ -133,6 +143,14 @@ export function EditorWorkspaceClient({
         onOpenChange={setIsShareOpen}
         projectId={project.id}
         isOwner={isOwner}
+      />
+
+      <StarterTemplatesModal
+        open={isTemplatesOpen}
+        onOpenChange={setIsTemplatesOpen}
+        onImport={(template) =>
+          setTemplateImport({ id: Date.now(), template })
+        }
       />
     </div>
   );

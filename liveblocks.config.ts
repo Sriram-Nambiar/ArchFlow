@@ -9,7 +9,7 @@ declare global {
       /** Real-time cursor coordinates on the canvas, or null when off-canvas. */
       cursor: { x: number; y: number } | null;
       /** True while this user's AI generation is in-flight. */
-      isThinking: boolean;
+      thinking: boolean;
     };
 
     // The Storage tree for the room, for useMutation, useStorage, etc.
@@ -32,13 +32,13 @@ declare global {
     };
 
     // Custom events, for useBroadcastEvent, useEventListener
-    RoomEvent: {};
+    RoomEvent: Record<string, never>;
 
     // Custom metadata set on threads, for useThreads, useCreateThread, etc.
-    ThreadMetadata: {};
+    ThreadMetadata: Record<string, never>;
 
     // Custom room info set with resolveRoomsInfo, for useRoomInfo
-    RoomInfo: {};
+    RoomInfo: Record<string, never>;
   }
 }
 
