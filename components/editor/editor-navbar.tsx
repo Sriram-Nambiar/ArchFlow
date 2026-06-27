@@ -2,14 +2,17 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { PanelLeftClose, PanelLeftOpen, Share2, MessageSquare } from "lucide-react"
+import { Layers3, MessageSquare, PanelLeftClose, PanelLeftOpen, Share2 } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 
 interface EditorNavbarProps {
   projectName?: string
   isSidebarOpen?: boolean
   onSidebarToggle?: () => void
+  onTemplatesClick?: () => void
   onShareClick?: () => void
+  isAiSidebarOpen?: boolean
+  onAiSidebarToggle?: () => void
   className?: string
 }
 
@@ -17,7 +20,10 @@ export function EditorNavbar({
   projectName,
   isSidebarOpen = false,
   onSidebarToggle,
+  onTemplatesClick,
   onShareClick,
+  isAiSidebarOpen = false,
+  onAiSidebarToggle,
   className,
 }: EditorNavbarProps) {
   return (
@@ -54,11 +60,19 @@ export function EditorNavbar({
 
       {/* Right section */}
       <div className="flex flex-1 items-center justify-end gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Open starter templates"
+          onClick={onTemplatesClick}
+        >
+          <Layers3 className="h-5 w-5 text-copy-secondary" />
+        </Button>
         <Button variant="ghost" size="icon" aria-label="Share project" onClick={onShareClick}>
           <Share2 className="h-5 w-5 text-copy-secondary" />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Toggle AI sidebar">
-          <MessageSquare className="h-5 w-5 text-copy-secondary" />
+        <Button variant="ghost" size="icon" aria-label="Toggle AI sidebar" onClick={onAiSidebarToggle}>
+          <MessageSquare className={cn("h-5 w-5", isAiSidebarOpen ? "text-brand" : "text-copy-secondary")} />
         </Button>
         <UserButton />
       </div>
