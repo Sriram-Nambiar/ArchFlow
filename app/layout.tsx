@@ -37,7 +37,7 @@ export default function RootLayout({
               colorBackground: "var(--bg-base)",
               colorForeground: "var(--text-primary)",
               colorPrimary: "var(--accent-primary)",
-              colorPrimaryForeground: "#080809",
+              colorPrimaryForeground: "var(--primary-foreground)",
               colorInput: "var(--bg-surface)",
               colorInputForeground: "var(--text-primary)",
               colorBorder: "var(--border-default)",
