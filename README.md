@@ -1,66 +1,60 @@
-# ArchFlow
+# Arch Flow
 
-ArchFlow is a real-time system design workspace powered by Ghost AI. It lets teams sketch architecture on a shared canvas, collaborate live, import starter templates, generate designs from prompts, and turn the final graph into a Markdown technical spec.
+> Real-time collaborative system design workspace powered by Ghost AI.
 
-## What It Does
+Arch Flow lets teams sketch architecture on a shared canvas, collaborate live, import starter templates, generate designs from prompts, and export the finished graph as a Markdown technical spec.
 
-- Real-time collaborative canvas built with Liveblocks and React Flow.
-- Clerk authentication with owner and collaborator access control.
-- Project workspace for creating, renaming, deleting, and sharing architecture projects.
-- Starter template library for common system design patterns.
-- AI-assisted architecture generation through Trigger.dev background tasks.
-- Markdown spec generation from the current canvas graph.
-- Persistent storage for project metadata in PostgreSQL and generated artifacts in Vercel Blob.
+🔗 **Live App:** [arch-flow-nine.vercel.app](https://arch-flow-nine.vercel.app)
+
+---
+
+## Features
+
+- **Multiplayer canvas** — live cursors, presence, and real-time node/edge editing powered by Liveblocks
+- **Ghost AI generation** — describe what you need and let the AI build or extend your architecture diagram
+- **Starter templates** — jump-start designs with common system design patterns
+- **Markdown spec export** — turn any finished canvas into a structured technical document
+- **Project workspace** — create, rename, delete, and share projects with role-based access (owner / collaborator)
+- **Canvas autosave** — your work is always preserved and restorable
+
+---
 
 ## Tech Stack
 
-- Next.js 16 + TypeScript
-- React 19
-- Tailwind CSS 4 + shadcn/ui
-- Clerk for authentication
-- Prisma + PostgreSQL for relational data
-- Liveblocks for multiplayer state, presence, and canvas collaboration
-- Trigger.dev for durable AI workflows
-- Vercel Blob for canvas snapshots and generated specs
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 + TypeScript |
+| UI | React 19, Tailwind CSS 4, shadcn/ui |
+| Auth | Clerk |
+| Database | Prisma + PostgreSQL |
+| Realtime | Liveblocks |
+| Background tasks | Trigger.dev |
+| Storage | Vercel Blob |
+| AI | NVIDIA API (via Trigger.dev tasks) |
 
-## Main Flow
+---
 
-1. Sign in with Clerk.
-2. Create a project or open an existing one.
-3. Enter the editor workspace.
-4. Optionally import a starter template into the canvas.
-5. Add or edit nodes and edges with your team in real time.
-6. Ask Ghost AI to generate or extend the architecture.
-7. Review the canvas and refine it collaboratively.
-8. Generate a Markdown spec from the finished graph.
-9. Download or reuse the stored spec later.
+## Getting Started
 
-## Repository Structure
+### Prerequisites
 
-- `app/` - App routes, layouts, API handlers, sign-in and sign-up pages, editor screens.
-- `components/` - UI components for the editor, dialogs, canvas, and shared primitives.
-- `context/` - Product, architecture, UI, and implementation notes.
-- `hooks/` - Client hooks for project actions, canvas autosave, and keyboard shortcuts.
-- `lib/` - Shared server utilities for Prisma, auth, access control, project data, and storage.
-- `prisma/` - Prisma schema, model definitions, and migrations.
-- `trigger/` - Trigger.dev tasks for AI design generation and spec generation.
-- `types/` - Shared TypeScript types for canvas and task data.
+- Node.js 20+
+- PostgreSQL database
+- Accounts / keys for: Clerk, Liveblocks, Trigger.dev, Vercel Blob, NVIDIA API
 
-## Prerequisites
-
-- Node.js 20 or newer
-- A PostgreSQL database
-- Clerk application credentials
-- Liveblocks secret key
-- Trigger.dev secret key
-- Vercel Blob read/write token
-- NVIDIA API key for the AI generation tasks
-
-## Environment Variables
-
-Create a `.env.local` file and set the required values for your environment.
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/Sriram-Nambiar/ArchFlow.git
+cd ArchFlow
+npm install
+```
+
+### 2. Configure environment
+
+Create a `.env.local` file at the root:
+
+```env
 DATABASE_URL=
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
@@ -72,54 +66,81 @@ BLOB_READ_WRITE_TOKEN=
 NVIDIA_API_KEY=
 ```
 
-If you deploy to another environment, set the same variables there as well.
-
-## Getting Started
+### 3. Run
 
 ```bash
-npm install
 npm run dev
 ```
 
-The development server runs at `http://localhost:3000` by default.
+App runs at `http://localhost:3000`.
 
-If you need to reset or inspect the database during local development, use Prisma commands directly against the configured schema.
+---
 
-## Available Scripts
+## How It Works
 
-- `npm run dev` - start the Next.js development server.
-- `npm run build` - create a production build.
-- `npm run start` - start the production server.
-- `npm run lint` - run ESLint.
+```
+Sign in → Create project → Open editor
+→ Import a template (optional)
+→ Edit nodes & edges with your team in real time
+→ Ask Ghost AI to generate or extend the design
+→ Refine collaboratively
+→ Export as a Markdown spec
+```
 
-## Notes On Data And Storage
+---
 
-- Project metadata, collaborators, and task run records live in PostgreSQL.
-- Canvas snapshots are stored in Vercel Blob and referenced from the database.
-- Generated Markdown specs are also stored in Vercel Blob and linked back to the project.
-- Long-running AI work does not run inside API handlers; it runs through Trigger.dev tasks.
+## Project Structure
 
-## Editor Features
+```
+app/          # Routes, layouts, API handlers, auth pages, editor screens
+components/   # Editor UI, dialogs, canvas primitives
+context/      # Product, architecture, UI, and implementation notes
+hooks/        # Project actions, canvas autosave, keyboard shortcuts
+lib/          # Server utilities: Prisma, auth, access control, storage
+prisma/       # Schema, models, migrations
+trigger/      # Trigger.dev tasks for AI generation and spec export
+types/        # Shared TypeScript types for canvas and task data
+```
 
-- Shared room-based collaboration with live cursors and presence.
-- Node creation, resizing, drag-and-drop, and inline label editing.
-- Edge creation and edge label editing.
-- Node color controls and shape palette.
-- Canvas autosave and restore.
-- AI sidebar for design generation and spec generation.
-- Share dialog for inviting collaborators and copying project links.
+---
 
-## Development Notes
+## Scripts
 
-- The app uses a dark-only theme with project-specific design tokens.
-- Route protection is handled through Clerk and the root proxy configuration.
-- React Server Components are used by default; client components are reserved for interactive editor surfaces.
-- The current product name is Ghost AI, while the repository package name is ArchFlow.
+```bash
+npm run dev      # Start development server
+npm run build    # Production build
+npm run start    # Start production server
+npm run lint     # Run ESLint
+```
+
+---
+
+## Data & Storage
+
+- **PostgreSQL** — project metadata, collaborators, task run records
+- **Vercel Blob** — canvas snapshots and generated Markdown specs
+- **Trigger.dev** — all long-running AI work runs here, not inside API handlers
+
+---
 
 ## Troubleshooting
 
-- If authentication fails, verify the Clerk keys and public sign-in/sign-up URLs.
-- If canvas collaboration fails, check the Liveblocks secret and room authorization flow.
-- If AI generation fails, confirm `TRIGGER_SECRET_KEY` and `NVIDIA_API_KEY` are set.
-- If canvas or spec downloads fail, verify `BLOB_READ_WRITE_TOKEN`.
-- If Prisma commands fail, confirm `DATABASE_URL` points to a reachable PostgreSQL database.
+| Problem | Check |
+|---|---|
+| Auth fails | Clerk keys and public sign-in/sign-up URLs |
+| Canvas collaboration fails | Liveblocks secret and room authorization flow |
+| AI generation fails | `TRIGGER_SECRET_KEY` and `NVIDIA_API_KEY` |
+| Spec/canvas download fails | `BLOB_READ_WRITE_TOKEN` |
+| Prisma errors | `DATABASE_URL` pointing to a reachable PostgreSQL instance |
+
+---
+
+## Contributing
+
+Pull requests are welcome. For significant changes, open an issue first to discuss what you'd like to change.
+
+---
+
+## License
+
+MIT
