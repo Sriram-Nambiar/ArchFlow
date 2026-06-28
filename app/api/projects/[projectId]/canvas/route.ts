@@ -1,7 +1,6 @@
 // Canvas save/load API routes
 import { put } from "@vercel/blob";
 import {
-  getAuthenticatedUserId,
   jsonResponse,
   notFoundResponse,
   unauthorizedResponse,
@@ -19,9 +18,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> },
 ) {
-  const userId = await getAuthenticatedUserId();
+  const identity = await getClerkIdentity();
 
-  if (!userId) {
+  if (!identity) {
     return unauthorizedResponse();
   }
 
@@ -36,7 +35,13 @@ export async function PUT(
     return notFoundResponse();
   }
 
-  if (project.ownerId !== userId) {
+  const hasAccess = await checkProjectAccess(
+    projectId,
+    identity.userId,
+    identity.emails,
+  );
+
+  if (!hasAccess) {
     return forbiddenResponse();
   }
 
@@ -73,9 +78,10 @@ export async function PUT(
     });
 
     return jsonResponse({ saved: true });
-  } catch (error: any) {
-    console.error("Canvas save error:", error);
-    return jsonResponse({ error: error.message || "Internal Server Error" }, 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Canvas save error:", message);
+    return jsonResponse({ error: "Failed to save canvas" }, 500);
   }
 }
 

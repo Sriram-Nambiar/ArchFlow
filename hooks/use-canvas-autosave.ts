@@ -42,17 +42,32 @@ export function useCanvasAutosave({
   // canvas during the initial empty-room render.
   const hasSeenDataRef = useRef(false);
 
+  // Track whether we have successfully saved a non-empty state.
+  // We initialize this to true if the canvas is initially loaded with data.
+  const hasSavedNonEmptyRef = useRef(nodes.length > 0 || edges.length > 0);
+
+  // Ref to cancel any in-flight autosave request to avoid concurrency issues.
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Keep a ref to the latest save function so the debounced call always
   // uses the current nodes/edges snapshot.
   const latestSnapshotRef = useRef({ nodes, edges });
-  latestSnapshotRef.current = { nodes, edges };
+  useEffect(() => {
+    latestSnapshotRef.current = { nodes, edges };
+  }, [nodes, edges]);
 
   const save = useCallback(async () => {
     const { nodes: n, edges: e } = latestSnapshotRef.current;
 
-    // Don't save empty canvases — this prevents overwriting a saved state
-    // when the room first loads empty before the restore runs.
-    if (n.length === 0 && e.length === 0) return;
+    // Don't save empty canvases unless we have already successfully saved a non-empty state.
+    // This prevents overwriting a saved state when the room first loads empty before restore.
+    if (n.length === 0 && e.length === 0 && !hasSavedNonEmptyRef.current) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setSaveStatus("saving");
 
@@ -66,18 +81,29 @@ export function useCanvasAutosave({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nodes: plainNodes, edges: plainEdges }),
+        signal: controller.signal,
       });
 
       if (!isMountedRef.current) return;
 
       if (res.ok) {
         setSaveStatus("saved");
+        if (plainNodes.length > 0 || plainEdges.length > 0) {
+          hasSavedNonEmptyRef.current = true;
+        }
       } else {
         setSaveStatus("error");
       }
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return; // Ignore aborted requests
+      }
       if (isMountedRef.current) {
         setSaveStatus("error");
+      }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
       }
     }
   }, [projectId]);
@@ -112,6 +138,9 @@ export function useCanvasAutosave({
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
 

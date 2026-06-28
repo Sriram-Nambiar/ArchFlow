@@ -189,16 +189,19 @@
 */
 .react-flow__node .react-flow__handle {
     opacity: 0;
+    pointer-events: none;
     transition: opacity 150ms ease;
 }
 
 .react-flow__node:hover .react-flow__handle {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .react-flow__handle.connectingfrom,
 .react-flow__handle.connectionindicator {
     opacity: 1;
+    pointer-events: auto;
 }
 
 /*
@@ -209,4 +212,10 @@
 .react-flow__connection-path {
     stroke: var(--text-secondary) !important;
     stroke-width: 1.5 !important;
+}
+
+/* Swatch focus ring for keyboard navigation */
+.color-swatch:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--accent-primary) !important;
 }

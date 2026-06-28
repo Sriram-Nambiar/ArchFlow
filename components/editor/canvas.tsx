@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useLiveblocksFlow } from "@liveblocks/react-flow";
-import { useMyPresence, useUndo, useRedo } from "@liveblocks/react/suspense";
+import { useMyPresence, useUndo, useRedo, useStorage, useMutation } from "@liveblocks/react/suspense";
+import { LiveList } from "@liveblocks/client";
+import type { AiStatusMessage } from "@/types/tasks";
 import {
   ReactFlow,
   Background,
@@ -27,23 +29,18 @@ import { CanvasControls } from "./canvas-controls";
 import { LiveCursors } from "./live-cursors";
 import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { useCanvasAutosave } from "@/hooks/use-canvas-autosave";
-import type { SaveStatus } from "@/hooks/use-canvas-autosave";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 // ---------------------------------------------------------------------------
-// ID generators — timestamp + monotonic counter avoids duplicates even when
-// two edges share the same source and target.
+// ID generators using crypto.randomUUID() for globally unique IDs.
 // ---------------------------------------------------------------------------
 
-let _nodeCounter = 0;
-let _edgeCounter = 0;
-
 function generateNodeId(shape: NodeShape): string {
-  return `${shape}-${Date.now()}-${++_nodeCounter}`;
+  return `${shape}-${crypto.randomUUID()}`;
 }
 
 function generateEdgeId(): string {
-  return `edge-${Date.now()}-${++_edgeCounter}`;
+  return `edge-${crypto.randomUUID()}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,7 +53,6 @@ interface CanvasProps {
     id: number;
     template: CanvasTemplate;
   } | null;
-  onSaveStatusChange?: (status: SaveStatus) => void;
 }
 
 /**
@@ -64,10 +60,30 @@ interface CanvasProps {
  * Must be rendered inside a Liveblocks `RoomProvider` + `ClientSideSuspense`
  * boundary — both provided by `CanvasWrapper`.
  */
-export function Canvas({ projectId, templateImport, onSaveStatusChange }: CanvasProps) {
+export function Canvas({ projectId, templateImport }: CanvasProps) {
+  // Capture the ReactFlow instance on mount so we can call screenToFlowPosition
+  // inside event handlers that live outside the ReactFlow context tree.
+  const rfInstance = useRef<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(
+    null,
+  );
+
   const { user } = useUser();
   const currentUserId = user?.id ?? null;
   const [, updateMyPresence] = useMyPresence();
+
+  // Initialize the shared AI status feed if it is undefined in the room storage
+  const feed = useStorage((root: any) => root["ai-status-feed"]);
+  const initializeFeed = useMutation(({ storage }: { storage: any }) => {
+    if (!storage.get("ai-status-feed")) {
+      storage.set("ai-status-feed", new LiveList<AiStatusMessage>([]));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (feed === undefined) {
+      initializeFeed();
+    }
+  }, [feed, initializeFeed]);
 
   // onConnect from useLiveblocksFlow calls React Flow's addEdge() which never
   // sets a custom edge type. We replace it entirely so every new edge gets
@@ -78,6 +94,36 @@ export function Canvas({ projectId, templateImport, onSaveStatusChange }: Canvas
       nodes: { initial: [] },
       edges: { initial: [] },
     });
+
+  // ---------------------------------------------------------------------------
+  // Heal nodes/edges that are missing required fields (e.g. from previous AI
+  // agent runs that omitted `id` or `position` in the JSON Patch value).
+  // ---------------------------------------------------------------------------
+
+  const safeNodes = nodes.map((node, index) => {
+    let healed = node;
+
+    // Heal missing id — React Flow uses it as the React key
+    if (!healed.id) {
+      healed = { ...healed, id: `healed-node-${index}-${Date.now()}` };
+    }
+
+    // Heal missing position — React Flow reads position.x / position.y
+    if (!healed.position) {
+      const x = typeof (healed as any).x === "number" ? (healed as any).x : 0;
+      const y = typeof (healed as any).y === "number" ? (healed as any).y : 0;
+      healed = { ...healed, position: { x, y } };
+    }
+
+    return healed;
+  });
+
+  const safeEdges = edges.map((edge, index) => {
+    if (!edge.id) {
+      return { ...edge, id: `healed-edge-${index}-${Date.now()}` };
+    }
+    return edge;
+  });
 
   const handleConnect = useCallback(
     (connection: Connection) => {
@@ -108,20 +154,15 @@ export function Canvas({ projectId, templateImport, onSaveStatusChange }: Canvas
   // Autosave — debounced persistence to Vercel Blob
   // -------------------------------------------------------------------------
 
-  const { saveStatus } = useCanvasAutosave({ projectId, nodes, edges });
+  const { saveStatus } = useCanvasAutosave({ projectId, nodes: safeNodes, edges: safeEdges });
 
-  // Bubble saveStatus up to the parent so CanvasControls can display it.
-  useEffect(() => {
-    onSaveStatusChange?.(saveStatus);
-  }, [saveStatus, onSaveStatusChange]);
+  // Local saveStatus is passed directly to CanvasControls in the render block.
 
   // -------------------------------------------------------------------------
   // Load saved canvas state when room is empty
   // -------------------------------------------------------------------------
 
   const hasLoadedRef = useRef(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-
   useEffect(() => {
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
@@ -133,7 +174,6 @@ export function Canvas({ projectId, templateImport, onSaveStatusChange }: Canvas
     let cancelled = false;
 
     async function loadSavedCanvas() {
-      setIsRestoring(true);
       try {
         const res = await fetch(`/api/projects/${projectId}/canvas`);
         if (!res.ok || cancelled) return;
@@ -156,8 +196,6 @@ export function Canvas({ projectId, templateImport, onSaveStatusChange }: Canvas
         });
       } catch {
         // Silently fail — the user can still work on a fresh canvas.
-      } finally {
-        if (!cancelled) setIsRestoring(false);
       }
     }
 
@@ -169,12 +207,6 @@ export function Canvas({ projectId, templateImport, onSaveStatusChange }: Canvas
     // Only run once on mount — nodes/edges refs are from the initial render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, onNodesChange, onEdgesChange]);
-
-  // Capture the ReactFlow instance on mount so we can call screenToFlowPosition
-  // inside event handlers that live outside the ReactFlow context tree.
-  const rfInstance = useRef<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(
-    null,
-  );
 
   // Wire keyboard shortcuts — +/= zoom in, - zoom out, Ctrl+Z undo, etc.
   useKeyboardShortcuts({ rfInstance, undo, redo });
@@ -294,8 +326,8 @@ export function Canvas({ projectId, templateImport, onSaveStatusChange }: Canvas
 
   return (
     <ReactFlow<CanvasNode, CanvasEdge>
-      nodes={nodes}
-      edges={edges}
+      nodes={safeNodes}
+      edges={safeEdges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={handleConnect}
@@ -304,6 +336,14 @@ export function Canvas({ projectId, templateImport, onSaveStatusChange }: Canvas
       edgeTypes={edgeTypes}
       defaultEdgeOptions={{ type: "canvasEdge" }}
       connectionMode={ConnectionMode.Loose}
+      /* Allow rubber-band selection by dragging on empty canvas area */
+      selectionOnDrag
+      /* Shift-click adds to existing selection */
+      selectionKeyCode="Shift"
+      /* Left-click drag on empty area → selection box; middle/right → pan */
+      panOnDrag={[1, 2]}
+      /* Both Delete and Backspace remove selected nodes/edges */
+      deleteKeyCode={["Backspace", "Delete"]}
       onInit={(instance) => {
         rfInstance.current = instance;
       }}
