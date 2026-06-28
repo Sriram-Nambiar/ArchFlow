@@ -13,7 +13,7 @@ export default function SignInPage() {
       <div className="hidden w-1/2 flex-col justify-center gap-10 border-r border-surface-border bg-surface p-12 lg:flex">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-copy-primary">
-            Ghost AI
+            Arch Flow
           </h1>
           <p className="mt-2 text-copy-secondary">
             Design, collaborate, and ship system architectures.
