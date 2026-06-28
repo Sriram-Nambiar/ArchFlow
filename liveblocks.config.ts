@@ -2,6 +2,9 @@
 // https://liveblocks.io/docs/api-reference/liveblocks-react#Typing-your-data
 import type { LiveblocksFlow } from "@liveblocks/react-flow";
 import type { CanvasNode, CanvasEdge } from "./types/canvas";
+import type { LiveList } from "@liveblocks/client";
+import type { AiStatusMessage, AiChatMessage } from "./types/tasks";
+
 declare global {
   interface Liveblocks {
     // Each user's Presence, for useMyPresence, useOthers, etc.
@@ -16,6 +19,10 @@ declare global {
     Storage: {
       /** React Flow diagram backed by Liveblocks. Key matches useLiveblocksFlow default. */
       flow: LiveblocksFlow<CanvasNode, CanvasEdge>;
+      /** Shared AI activity status feed. */
+      "ai-status-feed"?: LiveList<AiStatusMessage>;
+      /** Room chat messages. */
+      "ai-chat"?: LiveList<AiChatMessage>;
     };
 
     // Custom user info set when authenticating with a secret key

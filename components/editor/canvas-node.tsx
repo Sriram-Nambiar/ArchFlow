@@ -208,7 +208,7 @@ export function CanvasNodeComponent({
   const { minWidth, minHeight } = getMinDimensions(shape);
 
   return (
-    <div style={{ width: w, height: h }} className="relative select-none">
+    <div style={{ width: w, height: h }} className="group relative select-none">
       {/*
         Color toolbar — floats above the node via NodeToolbar portal.
         Only visible when the node is selected.
@@ -245,43 +245,31 @@ export function CanvasNodeComponent({
         ConnectionMode.Loose (set on <ReactFlow>) lets any handle connect to
         any other handle, so the user's drag direction fully controls which
         end is source and which is target — no forced topology.
-      */}
       {/*
-        Handles are hidden by default and fade in when the node is hovered.
-        !important overrides (! prefix) beat React Flow's built-in handle styles.
-        All four sides use type="source"; ConnectionMode.Loose on the canvas
-        allows any handle to connect to any other handle regardless of type.
+        Each side has paired source + target handles so connections can be
+        initiated AND received from any direction. ConnectionMode.Loose on
+        the canvas allows any handle to connect to any other handle. Both
+        handles at each position are co-located visually (React Flow stacks
+        them at the same anchor point).
       */}
-      {/*
-        Handle style is kept to pure overrides; opacity / visibility is
-        fully controlled by CSS in globals.css so it works during connection
-        drags (when React Flow adds .connectingfrom / .connectionindicator)
-        as well as plain node hover.
-      */}
-      <Handle
-        type="source"
-        position={Position.Top}
-        id="top"
-        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
-      />
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left"
-        className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full"
-      />
+      {(["Top", "Right", "Bottom", "Left"] as const).map((pos) => (
+        <Handle
+          key={`source-${pos}`}
+          type="source"
+          position={Position[pos]}
+          id={`${pos.toLowerCase()}-source`}
+          className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+        />
+      ))}
+      {(["Top", "Right", "Bottom", "Left"] as const).map((pos) => (
+        <Handle
+          key={`target-${pos}`}
+          type="target"
+          position={Position[pos]}
+          id={`${pos.toLowerCase()}-target`}
+          className="!w-2.5 !h-2.5 !min-w-0 !min-h-0 !bg-white !border-2 !border-surface !rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+        />
+      ))}
 
       {isCssShape ? (
         /* CSS-styled shapes — rectangle, pill, circle */
@@ -315,8 +303,8 @@ export function CanvasNodeComponent({
       {/*
         Label area.
         - Double-click opens inline editing.
-        - When editing, a textarea overlays the label exactly.
-        - Pointer events on the textarea are stopped so React Flow does not
+        - When editing, a contentEditable div overlays the label exactly.
+        - Pointer events on the contentEditable div are stopped so React Flow does not
           interpret typing gestures as canvas drag or pan.
         - `nodrag` and `nopan` class names tell React Flow not to initiate
           drag or pan from within this element.

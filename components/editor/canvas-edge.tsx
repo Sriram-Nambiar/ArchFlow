@@ -42,6 +42,7 @@ export function CanvasEdgeComponent({
   const [hovered, setHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const originalLabelRef = useRef<string>("");
   const { updateEdgeData } = useReactFlow<CanvasNode, CanvasEdge>();
 
   // getSmoothStepPath returns the SVG path string plus the label midpoint
@@ -73,12 +74,18 @@ export function CanvasEdgeComponent({
 
   const startEditing = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    originalLabelRef.current = data?.label ?? "";
     setIsEditing(true);
-  }, []);
+  }, [data?.label]);
 
   const commitEdit = useCallback(() => {
     setIsEditing(false);
   }, []);
+
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false);
+    updateEdgeData(id, { label: originalLabelRef.current });
+  }, [id, updateEdgeData]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,14 +98,17 @@ export function CanvasEdgeComponent({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter" || e.key === "Escape") {
+      if (e.key === "Enter") {
         e.preventDefault();
         commitEdit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancelEdit();
       }
       // Prevent React Flow from intercepting keyboard events while typing.
       e.stopPropagation();
     },
-    [commitEdit],
+    [commitEdit, cancelEdit],
   );
 
   // Focus and select-all when the input mounts.

@@ -1,15 +1,9 @@
 "use client";
 
 import React from "react";
-import {
-  LiveblocksProvider,
-  RoomProvider,
-  ClientSideSuspense,
-} from "@liveblocks/react";
-import { LiveObject, LiveMap } from "@liveblocks/client";
+import { ClientSideSuspense } from "@liveblocks/react";
 import { Canvas } from "./canvas";
 import type { CanvasTemplate } from "./starter-templates";
-import type { SaveStatus } from "@/hooks/use-canvas-autosave";
 
 // ---------------------------------------------------------------------------
 // Error boundary for Liveblocks connection failures
@@ -24,7 +18,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class LiveblocksErrorBoundary extends React.Component<
+export class LiveblocksErrorBoundary extends React.Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
@@ -60,7 +54,7 @@ function CanvasLoading() {
   );
 }
 
-function LiveblocksError() {
+export function LiveblocksError() {
   return (
     <div className="flex h-full w-full items-center justify-center">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -87,28 +81,12 @@ interface CanvasWrapperProps {
     id: number;
     template: CanvasTemplate;
   } | null;
-  onSaveStatusChange?: (status: SaveStatus) => void;
 }
 
-export function CanvasWrapper({ roomId, projectId, templateImport, onSaveStatusChange }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, projectId, templateImport }: CanvasWrapperProps) {
   return (
-    <LiveblocksErrorBoundary fallback={<LiveblocksError />}>
-      <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-        <RoomProvider
-          id={roomId}
-          initialPresence={{ cursor: null, thinking: false }}
-          initialStorage={() => ({
-            flow: new LiveObject({
-              nodes: new LiveMap(),
-              edges: new LiveMap(),
-            }),
-          })}
-        >
-          <ClientSideSuspense fallback={<CanvasLoading />}>
-            <Canvas projectId={projectId} templateImport={templateImport} onSaveStatusChange={onSaveStatusChange} />
-          </ClientSideSuspense>
-        </RoomProvider>
-      </LiveblocksProvider>
-    </LiveblocksErrorBoundary>
+    <ClientSideSuspense fallback={<CanvasLoading />}>
+      <Canvas projectId={projectId} templateImport={templateImport} />
+    </ClientSideSuspense>
   );
 }

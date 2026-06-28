@@ -70,8 +70,8 @@ export function PresenceAvatarGroup() {
         .map((other) => ({
           connectionId: other.connectionId,
           id: other.id,
-          name: other.info.name,
-          avatar: other.info.avatar,
+          name: other.info?.name ?? "",
+          avatar: other.info?.avatar ?? "",
         })),
     shallow,
   );

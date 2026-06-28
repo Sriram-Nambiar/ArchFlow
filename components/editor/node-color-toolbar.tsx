@@ -39,7 +39,7 @@ function ColorSwatch({ fill, textColor, isActive, onSelect }: ColorSwatchProps) 
       onPointerDown={(e) => e.stopPropagation()}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="nodrag nopan"
+      className="nodrag nopan color-swatch"
       style={{
         width: 20,
         height: 20,
@@ -52,7 +52,6 @@ function ColorSwatch({ fill, textColor, isActive, onSelect }: ColorSwatchProps) 
         boxShadow,
         transition: "box-shadow 0.12s ease, border-color 0.12s ease",
         flexShrink: 0,
-        outline: "none",
         padding: 0,
       }}
     />
