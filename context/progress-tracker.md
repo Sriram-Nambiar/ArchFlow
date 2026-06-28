@@ -12,6 +12,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Completed
 
+- README rewritten to match the current Ghost AI / ArchFlow scope, setup, scripts, and environment variables.
 - 01-design-system: shadcn/ui installed & configured, dark theme tokens set, cn() utility created, lucide-react installed, 7 component primitives added (Button, Card, Dialog, Input, Tabs, Textarea, ScrollArea)
 - Boilerplate stripped (globals.css, SVGs, page.tsx simplified)
 - 02-editor: Editor navbar, project sidebar, and dialog pattern for future use.
